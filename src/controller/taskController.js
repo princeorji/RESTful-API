@@ -1,5 +1,6 @@
 const Task = require('../models/task');
 const { shareTaskEmail } = require('../service/mail');
+const redis = require('../config/redis');
 
 const create = async (req, res, next) => {
   const { title, description, dueDate, status, priority, assignedTo, tags } =
@@ -28,16 +29,24 @@ const tasks = async (req, res, next) => {
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const filter = {};
-  if (req.query.status) {
-    filter.status = req.query.status;
-  }
-  if (req.query.priority) {
-    filter.priority = req.query.priority;
-  }
+  const cacheKey = `tasks:${JSON.stringify(req.query)}`;
 
   try {
+    const cachedData = await redis.get(cacheKey);
+    if (cachedData) {
+      // console.log('Cache hit:', cacheKey);
+      return res.status(200).json(JSON.parse(cachedData));
+    }
+    // console.log('Cache miss:', cacheKey)
+    
+    const filter = {};
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.priority) filter.priority = req.query.priority;
+
     const tasks = await Task.find(filter).skip(skip).limit(limit);
+
+    await redis.set(cacheKey, JSON.stringify({ tasks, page, limit }), 'EX', 300);
+  
     res.status(200).json({ tasks, page, limit });
   } catch (error) {
     next(error);
