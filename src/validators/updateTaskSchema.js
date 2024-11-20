@@ -7,7 +7,7 @@ const updateTaskSchema = Joi.object({
   status: Joi.string().valid('pending', 'in-progress', 'completed').optional(),
   priority: Joi.string().valid('low', 'medium', 'high').optional(),
   assignedTo: Joi.string().email().lowercase().optional(),
-  tags: Joi.array().items(Joi.string()).default([]).optional(),
+  tags: Joi.array().items(Joi.string()).optional(),
 });
 
 module.exports = updateTaskSchema;
